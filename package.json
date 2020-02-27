@@ -1,0 +1,16 @@
+{
+  "name": "orderbook-parser",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "author": "Keyrock",
+  "license": "MIT",
+  "scripts": {
+    "start": "node src"
+  },
+  "dependencies": {
+    "ws": "^7.2.1"
+  },
+  "devDependencies": {
+    "prettier": "^1.19.1"
+  }
+}
