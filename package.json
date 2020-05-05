@@ -1,13 +1,15 @@
 {
-  "name": "orderbook-parser",
+  "name": "orderbook-dev-test",
   "version": "1.0.0",
   "main": "src/index.js",
-  "author": "Keyrock",
+  "author": "Robin Venneman",
   "license": "MIT",
   "scripts": {
     "start": "node src"
   },
   "dependencies": {
+    "axios": "^0.19.2",
+    "express": "^4.17.1",
     "ws": "^7.2.1"
   },
   "devDependencies": {

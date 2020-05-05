@@ -1,10 +1,9 @@
-# `orderbook-parser`
-
-Example projects that shows how to obtain orderbook snapshots from Kraken.
+# Keyrock full stack developer test 
+Solution based on `orderbook-parser` example project that gets orderbook snapshots from Kraken.
 
 ## Requirements
 
-- You need a relatively new version of Node.js (this was tested with version 13.3.0)
+- You need a relatively new version of Node.js (this was tested with version 14.1.0)
 - `yarn` package manager
 
 ## How to install
@@ -14,4 +13,4 @@ Example projects that shows how to obtain orderbook snapshots from Kraken.
 
 ## How to run
 
-Just `yarn start`.
+Run`yarn start`, open your browser on `http://localhost:9000/`.
