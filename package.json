@@ -1,15 +1,17 @@
 {
   "name": "orderbook-dev-test",
   "version": "1.0.0",
-  "main": "src/index.js",
+  "main": "index.js",
   "author": "Robin Venneman",
   "license": "MIT",
+  "private": true,
   "scripts": {
-    "start": "node src"
+    "start": "node ."
   },
   "dependencies": {
     "axios": "^0.19.2",
     "express": "^4.17.1",
+    "uuid": "^8.0.0",
     "ws": "^7.2.1"
   },
   "devDependencies": {
