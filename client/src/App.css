@@ -1,3 +1,4 @@
+
 .App {
   max-width: 1400px;
   margin: 0 auto;
@@ -17,11 +18,63 @@
 }
 
 .status-ok {
-  background-color: #01B075;
+  background-color: var(--green);
 }
 
 .status-error {
-  background-color: #FA4637;
+  background-color: var(--red);
+}
+
+.AddMarketModal {
+  background-color: var(--darkest-grey);
+  border: 2px solid var(--lighter-grey);
+  position: absolute;
+  top: 40px;
+  left: 40px;
+  right: 40px;
+  bottom: 40px;
+  padding: 40px;
+  overflow-y: auto;
+}
+
+.AddMarketsList {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.AddMarketsListItem {
+  border: 1px solid var(--lighter-grey);
+  cursor: pointer;
+  padding: 10px;
+  margin: 10px;
+  transition: border-color 0.7s;
+}
+
+.AddMarketsListItem:hover {
+  border-color: var(--green);
+}
+
+.button-confirm,
+.button-cancel {
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 10px;
+  margin: 10px 5px;
+}
+
+.button-confirm {
+  background-color: var(--green);
+}
+
+.button-cancel {
+  background-color: var(--red);
 }
 
 .MarketsList {
@@ -42,11 +95,36 @@
 }
 
 .Market {
-  background-color: #323337;
+  background-color: var(--lighter-grey);
 }
 
 .NewMarketPlaceholder {
-  border: 1px solid #323337;
+  border: 2px solid var(--lighter-grey);
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  opacity: 0.7;
+  transition: opacity .7s, background-color .7s;
+}
+
+.NewMarketPlaceholder:hover {
+  background-color: var(--lighter-grey);
+  opacity: 1;
+}
+
+.AddMarketButton {
+  background-color: var(--green);
+  border-radius: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  font-size: 20px;
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
 }
 
 .AsksList,
@@ -68,11 +146,11 @@
 }
 
 .AskPrice {
-  color: #01B075;
+  color: var(--green);
 }
 
 .BidPrice {
-  color: #FA4637;
+  color: var(--red);
 }
 
 .Ask,

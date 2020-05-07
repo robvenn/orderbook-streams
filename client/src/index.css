@@ -1,5 +1,12 @@
+:root {
+  --darkest-grey: #222327;
+  --lighter-grey: #323337;
+  --green: #01B075;
+  --red: #FA4637;
+}
+
 body {
-  background-color: #222327;
+  background-color: var(--darkest-grey);
   color: white;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

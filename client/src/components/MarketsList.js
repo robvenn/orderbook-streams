@@ -1,16 +1,25 @@
-import React from "react";
+import React, { useState } from "react";
 import Market from "./Market";
 
 export default function MarketsList(props) {
-  const markets = [{ item: "one" }];
+  const { browseAvailableMarkets, markets, online } = props;
+  // const [markets, setMarkets] = useState([]);
+  console.log({
+    markets
+  });
   return (
     <ul className="MarketsList">
       {markets.map(market => (
-        <Market {...market} />
+        <Market key={`${market.exchange}.${market.pair}`} {...market} />
       ))}
-      <li className="NewMarketPlaceholder">
-        <p>Click to add a new market</p>
-      </li>
+      {online ? (
+        <li className="NewMarketPlaceholder" onClick={browseAvailableMarkets}>
+          <span className="AddMarketButton"> &#43; </span>
+          <p>Click to add a new market</p>
+        </li>
+      ) : (
+        <p>Connecting to server...</p>
+      )}
     </ul>
   );
 }
