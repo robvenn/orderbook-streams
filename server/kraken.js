@@ -1,22 +1,20 @@
 const axios = require("axios");
+const { pipeline, Transform } = require("stream");
 const WebSocket = require("ws");
-const sink = require("./sink");
+
+// const sink = require("./sink");
 
 const API_URL = "https://api.kraken.com/0/public/AssetPairs";
 const WS_URL = "wss://ws.kraken.com";
 
-const symbol = "ETH/XBT";
-
-async function getPairs() {
+const getPairs = async () => {
   const {
     data: { result }
   } = await axios.get(API_URL);
-  const pairs = Object.values(result).reduce(
-    (pairs, { wsname }) => [...pairs, wsname],
-    []
-  );
-  return pairs;
-}
+  return Object.values(result)
+    .reduce((pairs, { wsname }) => [...pairs, wsname], [])
+    .filter(pair => Boolean(pair));
+};
 
 // See https://www.kraken.com/features/websocket-api#message-book for payload example
 const normalizePayload = payload => {
@@ -30,52 +28,78 @@ const normalizePayload = payload => {
   return { ask, bid, asks, bids, pair };
 };
 
-class Kraken {
-  constructor() {
-    this.ws = null;
-    this.subscriptions = [];
-  }
-  async connect() {
-    this.ws = new WebSocket(WS_URL);
-    this.ws.onopen = () => console.log("[kraken] Connection open");
-    this.ws.onerror = err => console.error("[kraken] error", { err });
-    this.ws.onclose = () =>
-      console.error("[kraken] WebSocket connection closed");
-    this.connection = WebSocket.createWebSocketStream(this.ws, {
-      encoding: "utf8"
-    });
-    this.connection.on("data", chunk => {
+const createOutputStream = () => {
+  return new Transform({
+    objectMode: true,
+    //writableObjectMode: true,
+    transform(chunk, encoding, cb) {
       console.log({ chunk });
       const payload = JSON.parse(chunk);
-      console.log({ payload });
       if (Array.isArray(payload)) {
         const { ask, asks, bid, bids, pair } = normalizePayload(payload);
-
-        if (pair !== symbol) {
-          throw new Error(`${pair} update received. Expected: ${symbol}`);
-        }
-
-        if (bids && asks) {
-          sink.send({ bids, asks });
-        } else {
-          // These are updates, not orderbook snapshots. In a normal implementation they should update the last
-          // orderbook snapshot in memory and deliver the up-to-date orderbook.
-          sink.send({ bids: bid, asks: ask });
-        }
+        this.push({ ask, asks, bid, bids, pair });
       } else {
         const { event } = payload;
         if (event === "heartbeat") {
           console.log("[kraken] Heartbeat received");
         } else if (!["systemStatus", "subscriptionStatus"].includes(event)) {
-          console.error("Unknown update received", payload);
+          console.error("[kraken] Unknown update received", payload);
         }
       }
-    });
+      cb();
+    }
+  });
+};
+
+const createSubscriptionStream = symbol => {
+  return new Transform({
+    // objectMode: true,
+    //writableObjectMode: true,
+    transform(chunk, encoding, cb) {
+      console.log({ chunk });
+      const { ask, asks, bid, bids, pair } = chunk;
+      if (pair !== symbol) return cb();
+      let data;
+      if (bids && asks) {
+        data = { bids, asks };
+      } else {
+        // These are updates, not orderbook snapshots. In a normal implementation they should update the last
+        // orderbook snapshot in memory and deliver the up-to-date orderbook.
+        data = { bids: bid, asks: ask };
+      }
+      return cb(null, JSON.stringify(data));
+      // this.push(JSON.stringify({ ask, asks, bid, bids, pair }));
+    }
+  });
+};
+
+class Kraken {
+  constructor() {
+    this.pairs = [];
+    this.ws = null;
+    this.stream = null;
+    this.output = createOutputStream();
+    this.subscriptions = new Map();
   }
-  ping() {}
+  async connect() {
+    this.ws = new WebSocket(WS_URL);
+    this.ws.onopen = () => console.log("[kraken] WS connection open");
+    this.ws.onerror = err => console.error("[kraken] WS error", { err });
+    this.ws.onclose = () => console.error("[kraken] WS connection closed");
+    this.stream = WebSocket.createWebSocketStream(this.ws, {
+      encoding: "utf8"
+    });
+    this.stream.pipe(this.output);
+  }
+  async init() {
+    this.pairs = await getPairs();
+    await this.connect();
+  }
+  // ping() {}
   subscribe(symbol) {
     console.log("Kraken subscribe to ", symbol);
-    this.connection.write(
+    this.filteredStreams = createSubscriptionStream;
+    this.stream.write(
       JSON.stringify({
         event: "subscribe",
         pair: [symbol],
@@ -94,6 +118,5 @@ function createService() {
 }
 
 module.exports = {
-  createService,
-  getPairs
+  createService
 };
