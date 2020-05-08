@@ -6,7 +6,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "node ."
+    "start": "node .",
+    "dev": "nodemon ."
   },
   "dependencies": {
     "axios": "^0.19.2",
@@ -15,6 +16,7 @@
     "ws": "^7.2.1"
   },
   "devDependencies": {
+    "nodemon": "^2.0.3",
     "prettier": "^1.19.1"
   }
 }

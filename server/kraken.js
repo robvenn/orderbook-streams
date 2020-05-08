@@ -1,11 +1,12 @@
 const axios = require("axios");
-const { pipeline, Transform } = require("stream");
+const { Transform } = require("stream");
 const WebSocket = require("ws");
 
 // const sink = require("./sink");
 
 const API_URL = "https://api.kraken.com/0/public/AssetPairs";
 const WS_URL = "wss://ws.kraken.com";
+const PING_INTERVAL_MS = 10000;
 
 const getPairs = async () => {
   const {
@@ -31,9 +32,8 @@ const normalizePayload = payload => {
 const createOutputStream = () => {
   return new Transform({
     objectMode: true,
-    //writableObjectMode: true,
     transform(chunk, encoding, cb) {
-      console.log({ chunk });
+      console.log("output", { encoding });
       const payload = JSON.parse(chunk);
       if (Array.isArray(payload)) {
         const { ask, asks, bid, bids, pair } = normalizePayload(payload);
@@ -42,6 +42,8 @@ const createOutputStream = () => {
         const { event } = payload;
         if (event === "heartbeat") {
           console.log("[kraken] Heartbeat received");
+        } else if (event === "pong") {
+          console.log("[kraken] Pong received");
         } else if (!["systemStatus", "subscriptionStatus"].includes(event)) {
           console.error("[kraken] Unknown update received", payload);
         }
@@ -51,12 +53,14 @@ const createOutputStream = () => {
   });
 };
 
-const createSubscriptionStream = symbol => {
-  return new Transform({
+const createSubscriptionStream = (outputStream, symbol) => {
+  console.log("create sub", { symbol });
+  const transform = new Transform({
     // objectMode: true,
-    //writableObjectMode: true,
+    readableObjectMode: false,
+    writableObjectMode: true,
     transform(chunk, encoding, cb) {
-      console.log({ chunk });
+      //console.log("sub stream for " + symbol, { chunk });
       const { ask, asks, bid, bids, pair } = chunk;
       if (pair !== symbol) return cb();
       let data;
@@ -68,49 +72,100 @@ const createSubscriptionStream = symbol => {
         data = { bids: bid, asks: ask };
       }
       return cb(null, JSON.stringify(data));
-      // this.push(JSON.stringify({ ask, asks, bid, bids, pair }));
     }
   });
+  return outputStream.pipe(transform);
 };
 
 class Kraken {
   constructor() {
     this.pairs = [];
-    this.ws = null;
-    this.stream = null;
     this.output = createOutputStream();
+    this.initWebSocket();
     this.subscriptions = new Map();
   }
-  async connect() {
+  initWebSocket() {
     this.ws = new WebSocket(WS_URL);
     this.ws.onopen = () => console.log("[kraken] WS connection open");
     this.ws.onerror = err => console.error("[kraken] WS error", { err });
-    this.ws.onclose = () => console.error("[kraken] WS connection closed");
+    this.ws.onclose = () => {
+      console.error("[kraken] WS connection closed, reconnecting...");
+      this.initWebSocket();
+    };
     this.stream = WebSocket.createWebSocketStream(this.ws, {
       encoding: "utf8"
     });
     this.stream.pipe(this.output);
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+    }
+    this.pingInterval = setInterval(() => {
+      console.log("[kraken] Ping sent");
+      this.ping();
+    }, PING_INTERVAL_MS);
   }
   async init() {
     this.pairs = await getPairs();
-    await this.connect();
   }
-  // ping() {}
-  subscribe(symbol) {
-    console.log("Kraken subscribe to ", symbol);
-    this.filteredStreams = createSubscriptionStream;
-    this.stream.write(
+  ping() {
+    this.ws.send(
       JSON.stringify({
-        event: "subscribe",
-        pair: [symbol],
-        subscription: {
-          name: "book",
-          depth: 100
-        }
+        event: "ping"
       })
     );
   }
-  unsubscribe() {}
+  subscribe(stream, pair) {
+    console.log("[kraken] subscribe to ", pair);
+    let subscription;
+    if (this.subscriptions.has(pair)) {
+      subscription = this.subscriptions.get(pair);
+      subscription.subscribers += 1;
+    } else {
+      this.stream.write(
+        JSON.stringify({
+          event: "subscribe",
+          pair: [pair],
+          subscription: {
+            name: "book",
+            depth: 100
+          }
+        })
+      );
+      subscription = {
+        stream: createSubscriptionStream(this.output, pair),
+        subscribers: 1
+      };
+      this.subscriptions.set(pair, subscription);
+    }
+    subscription.stream.pipe(stream);
+    console.log(
+      `[kraken] New subscriber to ${pair}, number is now ${subscription.subscribers}`
+    );
+  }
+  unsubscribe(stream, pair) {
+    if (!this.subscriptions.has(pair)) {
+      throw new Error("[kraken] Subscription not found, " + pair);
+    }
+    const subscription = this.subscriptions.get(pair);
+    subscription.stream.unpipe(stream);
+    subscription.subscribers -= 1;
+    console.log(
+      `[kraken] Removed subscription to ${pair}, number of subscriber is now ${subscription.subscribers}`
+    );
+    if (subscription.subscribers <= 0) {
+      this.stream.write(
+        JSON.stringify({
+          event: "unsubscribe",
+          pair: [pair],
+          subscription: {
+            name: "book",
+            depth: 100
+          }
+        })
+      );
+      this.subscriptions.delete(pair);
+    }
+  }
 }
 
 function createService() {
