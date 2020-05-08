@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Modal from "react-modal";
+import { parseBlob } from "./util/fileReader";
 import MarketsList from "./components/MarketsList";
 import "./App.css";
 
@@ -17,22 +18,24 @@ Modal.setAppElement("#root");
 
 function App() {
   const [status, setStatus] = useState(STATUS.INITIALIZING);
-  const [exchanges, setExchanges] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
   const [modalIsOpen, setIsOpen] = React.useState(false);
+  const [exchanges, setExchanges] = useState([]);
+  const [subscriptions, setSubscriptions] = useState({});
+
   const closeModal = () => setIsOpen(false);
   const openModal = () => setIsOpen(true);
-  const onAddMarket = ({ exchangeId, pair }) => {
+  const onAddSubscription = (marketId, market) => {
+    const { exchangeId, pair } = market;
     console.log("onAddMarket", { exchangeId, pair });
-    /*const market = {
-      exchange: "",
-      pair: "",
+    const subscription = {
+      ...market,
       asks: [],
       bids: [],
       midPrice: null,
       spread: null
-    };*/
-    //setSubscriptions([...subscriptions, market]);
+    };
+    setSubscriptions({ ...subscriptions, [marketId]: subscription });
+    closeModal();
     ws.send(
       JSON.stringify({
         action: "subscribe",
@@ -41,15 +44,45 @@ function App() {
       })
     );
   };
+
+  const availableMarkets = exchanges.reduce((markets, exchange) => {
+    const { id: exchangeId, name: exchangeName, pairs } = exchange;
+    return {
+      ...markets,
+      ...pairs
+        .filter(pair => !subscriptions.hasOwnProperty(`${exchangeId}.${pair}`))
+        .map(pair => ({ exchangeId, exchangeName, pair }))
+        .reduce(
+          (pairs, market) => ({
+            ...pairs,
+            [`${exchangeId}.${market.pair}`]: market
+          }),
+          {}
+        )
+    };
+  }, {});
+
+  console.log({ availableMarkets });
   useEffect(() => {
     ws.onopen = () => {
       setStatus(STATUS.CONNECTED);
     };
-    ws.onmessage = evt => {
-      const msg = JSON.parse(evt.data);
-      console.log("message:", msg);
-      if (msg.exchanges) {
-        setExchanges(msg.exchanges);
+    ws.onmessage = async evt => {
+      let data;
+      try {
+        if (evt.data instanceof Blob) {
+          data = await parseBlob(evt.data);
+        } else {
+          data = JSON.parse(evt.data);
+        }
+      } catch (err) {
+        console.error("failed parsing message: ", evt.data);
+      }
+      console.log("message:", data);
+      if (data?.exchanges) {
+        setExchanges(data.exchanges);
+      }
+      if (data?.pair) {
       }
     };
     ws.onclose = () => {
@@ -80,7 +113,7 @@ function App() {
         <MarketsList
           exchanges={exchanges}
           online={status === STATUS.CONNECTED}
-          markets={subscriptions}
+          markets={Object.values(subscriptions)}
           browseAvailableMarkets={openModal}
         />
       )}
@@ -91,18 +124,23 @@ function App() {
         contentLabel="Add market"
       >
         <h2>Add market</h2>
-        <p>Select which market you want to track</p>
+        <p>
+          Select which market you want to track (available:{" "}
+          {Object.keys(availableMarkets).length})
+        </p>
         <ul className="AddMarketsList">
-          {exchanges.map(({ id: exchangeId, name: exchangeName, pairs }) => {
-            return pairs.map(pair => (
+          {Object.entries(availableMarkets).map(([marketId, market]) => {
+            const { exchangeName, pair } = market;
+            //console.log({ marketId, market });
+            return (
               <li
                 className="AddMarketsListItem"
-                key={`${exchangeId}.${pair}`}
-                onClick={() => onAddMarket({ exchangeId, pair })}
+                key={marketId}
+                onClick={() => onAddSubscription(marketId, market)}
               >
                 &#43; {exchangeName}: {pair}
               </li>
-            ));
+            );
           })}
         </ul>
         <div>
