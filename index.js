@@ -10,7 +10,7 @@ const PORT = 9000;
  * The static server for the frontend
  */
 const app = express();
-app.use(express.static(path.join(__dirname, "client/public")));
+app.use(express.static(path.join(__dirname, "client/build")));
 
 /*
  * The same server will also handle the incoming WebSocket connections
