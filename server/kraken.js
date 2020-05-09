@@ -63,13 +63,15 @@ const createSubscriptionStream = (outputStream, symbol) => {
       //console.log("sub stream for " + symbol, { chunk });
       const { ask, asks, bid, bids, pair } = chunk;
       if (pair !== symbol) return cb();
-      let data;
+      const data = { pair };
       if (bids && asks) {
-        data = { bids, asks };
+        data.bids = bids;
+        data.asks = asks;
       } else {
         // These are updates, not orderbook snapshots. In a normal implementation they should update the last
         // orderbook snapshot in memory and deliver the up-to-date orderbook.
-        data = { bids: bid, asks: ask };
+        data.bids = bid;
+        data.asks = ask;
       }
       return cb(null, JSON.stringify(data));
     }

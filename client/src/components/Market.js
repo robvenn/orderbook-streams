@@ -1,44 +1,51 @@
 import React from "react";
 
-export default function Market() {
+export default function Market(props) {
+  const {
+    asks = [],
+    bids = [],
+    exchangeName,
+    pair,
+    midPrice,
+    spread,
+    onRemove
+  } = props;
   return (
-    <div className="Market">
+    <li className="Market">
       <header className="Market-header">
-        <h3>Kraken BTC/USD</h3>
+        <h3>
+          {exchangeName} {pair}
+        </h3>
         <p>Speed: 53 ob/min</p>
       </header>
       <ul className="AsksList">
-        <li className="Ask">
-          <span className="AskPrice">7107.3</span>
-          <span className="">25.0</span>
-        </li>
-        <li className="Ask">
-          <span className="AskPrice">7107.3</span>
-          <span className="">25.0</span>
-        </li>
-        <li className="Ask">
-          <span className="AskPrice">7107.3</span>
-          <span className="">25.0</span>
-        </li>
+        {asks.map(ask => {
+          return (
+            <li key={ask[0] + ask[1]} className="Ask">
+              <span className="AskPrice">{ask[0]}</span>
+              <span className="">{ask[1]}</span>
+            </li>
+          );
+        })}
       </ul>
       <div className="Market-highlight">
-        <div className="MidPrice">7142.5 USD</div>
-        <div className="Spread">0.03%</div>
+        <div className="MidPrice">{midPrice && `${midPrice} USD`}</div>
+        <div className="Spread">{spread && `${spread} %`}</div>
       </div>
       <ul className="BidsList">
-        <li className="Bid">
-          <span className="BidPrice">7104.8</span>
-          <span className="">22.1</span>
-        </li>
-        <li className="Bid">
-          <span className="BidPrice">7104.8</span>
-          <span className="">22.1</span>
-        </li>
-        <li className="Bid">
-          <span className="BidPrice">7104.8</span>
-          <span className="">22.1</span>
-        </li>
+        {bids.map(bid => {
+          return (
+            <li key={bid[0] + bid[1]} className="Bid">
+              <span className="BidPrice">{bid[0]}</span>
+              <span className="">{bid[1]}</span>
+            </li>
+          );
+        })}
       </ul>
-    </div>
+      <p className="RemoveMarket" onClick={onRemove}>
+        <span className="RemoveMarketButton"> &#10006; </span>
+        <span className="RemoveMarketText">Click to remove market</span>
+      </p>
+    </li>
   );
 }

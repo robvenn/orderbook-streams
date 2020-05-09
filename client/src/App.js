@@ -14,8 +14,6 @@ const WS_URL = "ws://localhost:9000";
 const ws = new WebSocket(WS_URL);
 Modal.setAppElement("#root");
 
-// if (!ws || ws.readyState == WebSocket.CLOSED) this.connect();
-
 function App() {
   const [status, setStatus] = useState(STATUS.INITIALIZING);
   const [modalIsOpen, setIsOpen] = React.useState(false);
@@ -26,7 +24,6 @@ function App() {
   const openModal = () => setIsOpen(true);
   const onAddSubscription = (marketId, market) => {
     const { exchangeId, pair } = market;
-    console.log("onAddMarket", { exchangeId, pair });
     const subscription = {
       ...market,
       asks: [],
@@ -44,6 +41,21 @@ function App() {
       })
     );
   };
+  const onRemoveSubscription = marketId => {
+    const {
+      [marketId]: marketToRemove,
+      ...updatedSubscriptions
+    } = subscriptions;
+    const { exchangeId, pair } = marketToRemove;
+    ws.send(
+      JSON.stringify({
+        action: "unsubscribe",
+        exchangeId,
+        pair
+      })
+    );
+    setSubscriptions(updatedSubscriptions);
+  };
 
   const availableMarkets = exchanges.reduce((markets, exchange) => {
     const { id: exchangeId, name: exchangeName, pairs } = exchange;
@@ -51,18 +63,22 @@ function App() {
       ...markets,
       ...pairs
         .filter(pair => !subscriptions.hasOwnProperty(`${exchangeId}.${pair}`))
-        .map(pair => ({ exchangeId, exchangeName, pair }))
+        .map(pair => ({
+          id: `${exchangeId}.${pair}`,
+          exchangeId,
+          exchangeName,
+          pair
+        }))
         .reduce(
           (pairs, market) => ({
             ...pairs,
-            [`${exchangeId}.${market.pair}`]: market
+            [market.id]: market
           }),
           {}
         )
     };
   }, {});
 
-  console.log({ availableMarkets });
   useEffect(() => {
     ws.onopen = () => {
       setStatus(STATUS.CONNECTED);
@@ -78,19 +94,64 @@ function App() {
       } catch (err) {
         console.error("failed parsing message: ", evt.data);
       }
-      console.log("message:", data);
+      console.log("message:", JSON.stringify(data));
       if (data?.exchanges) {
         setExchanges(data.exchanges);
       }
-      if (data?.pair) {
+      if (data?.exchange && data?.pair) {
+        const { exchange, pair, asks, bids } = data;
+        const subscriptionId = `${exchange}.${pair}`;
+        if (!subscriptions.hasOwnProperty(subscriptionId)) {
+          console.error(
+            `Got message for unknown subscription: exchangeId=${exchange} pair=${pair}`
+          );
+          return;
+        }
+        const subscription = subscriptions[subscriptionId];
+        let updateSubscription;
+        if (asks) {
+          const newAsks = asks
+            .slice(0, 3)
+            .map(ask => {
+              ask[0] = parseFloat(ask[0]);
+              return ask;
+            })
+            .reverse();
+          updateSubscription = {
+            ...subscription,
+            asks: newAsks
+          };
+        }
+        if (bids) {
+          const newBids = bids.slice(0, 3).map(bid => {
+            bid[0] = parseFloat(bid[0]);
+            return bid;
+          });
+          updateSubscription = updateSubscription || { ...subscription };
+          updateSubscription.bids = newBids;
+        }
+        if (updateSubscription) {
+          const bestAskPrice = updateSubscription.asks[2][0];
+          const bestBidPrice = updateSubscription.bids[0][0];
+          const midPrice = (bestAskPrice + bestBidPrice) / 2;
+          const spread = (bestAskPrice - bestBidPrice) / midPrice;
+          setSubscriptions({
+            ...subscriptions,
+            [subscriptionId]: {
+              ...updateSubscription,
+              midPrice,
+              spread
+            }
+          });
+        }
       }
     };
     ws.onclose = () => {
       setStatus(STATUS.RECONNECTING);
-      console.log("ws closed");
+      console.error("ws closed");
     };
-    ws.onerror = () => console.log("ws error");
-  }, [ws]);
+    ws.onerror = () => console.error("ws error");
+  }, [subscriptions]);
 
   return (
     <div className="App">
@@ -115,6 +176,7 @@ function App() {
           online={status === STATUS.CONNECTED}
           markets={Object.values(subscriptions)}
           browseAvailableMarkets={openModal}
+          removeMarket={onRemoveSubscription}
         />
       )}
       <Modal
@@ -131,7 +193,6 @@ function App() {
         <ul className="AddMarketsList">
           {Object.entries(availableMarkets).map(([marketId, market]) => {
             const { exchangeName, pair } = market;
-            //console.log({ marketId, market });
             return (
               <li
                 className="AddMarketsListItem"

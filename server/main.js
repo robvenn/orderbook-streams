@@ -17,7 +17,8 @@ async function initWebSocketServer() {
   wss.on("connection", function(ws) {
     const connectionId = uuidv4();
     const stream = WebSocket.createWebSocketStream(ws, {
-      encoding: "utf8"
+      encoding: "utf8",
+      binary: false
     });
     const subscriptions = new Map();
     wsConnections.set(connectionId, {

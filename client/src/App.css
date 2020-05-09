@@ -84,9 +84,8 @@
   display: block;
 }
 
-.Market,
-.NewMarketPlaceholder {
-  height: 300px;
+.MarketsList > li {
+  height: 360px;
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
   monospace;
   padding: 10px;
@@ -96,16 +95,23 @@
 
 .Market {
   background-color: var(--lighter-grey);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
+.ConnectingPlaceholder,
 .NewMarketPlaceholder {
   border: 2px solid var(--lighter-grey);
-  cursor: pointer;
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
   opacity: 0.7;
+}
+
+.NewMarketPlaceholder {
+  cursor: pointer;
   transition: opacity .7s, background-color .7s;
 }
 
@@ -127,10 +133,39 @@
   margin-right: 10px;
 }
 
+.RemoveMarket {
+  cursor: pointer;
+  display: flex;
+  opacity: 0.7;
+  transition: opacity .7s, background-color .7s;
+}
+
+.RemoveMarket:hover {
+  opacity: 1;
+}
+
+.RemoveMarket:hover > .RemoveMarketText {
+  text-decoration: underline;
+}
+
+.RemoveMarketButton {
+  background-color: var(--red);
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  font-size: 15px;
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+}
+
 .AsksList,
 .BidsList {
   list-style: none;
   padding: 0;
+  height: 86px;
 }
 
 .Ask,
@@ -179,9 +214,8 @@
     flex-direction: row;
     flex-wrap: wrap;
   }
-  .Market,
-  .NewMarketPlaceholder {
-    flex: 1;
+  .MarketsList > li {
+    flex-grow: 1;
     max-width: 49%;
   }
   .MarketsList > li:not(:first-child),
@@ -191,10 +225,7 @@
 }
 
 @media (min-width: 1180px) {
-  .MarketsList {
-  }
-  .Market,
-  .NewMarketPlaceholder {
+  .MarketsList > li {
     max-width: 32%;
   }
   .MarketsList > li:not(:first-child),
@@ -204,8 +235,7 @@
 }
 
 @media (min-width: 1440px) {
-  .Market,
-  .NewMarketPlaceholder {
+  .MarketsList > li {
     max-width: 24%;
   }
   .MarketsList > li:not(:first-child),

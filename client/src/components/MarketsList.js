@@ -1,16 +1,16 @@
-import React, { useState } from "react";
+import React from "react";
 import Market from "./Market";
 
 export default function MarketsList(props) {
-  const { browseAvailableMarkets, markets, online } = props;
-  // const [markets, setMarkets] = useState([]);
-  console.log({
-    markets
-  });
+  const { browseAvailableMarkets, markets, online, removeMarket } = props;
   return (
     <ul className="MarketsList">
       {markets.map(market => (
-        <Market key={`${market.exchange}.${market.pair}`} {...market} />
+        <Market
+          key={market.id}
+          onRemove={() => removeMarket(market.id)}
+          {...market}
+        />
       ))}
       {online ? (
         <li className="NewMarketPlaceholder" onClick={browseAvailableMarkets}>
@@ -18,7 +18,7 @@ export default function MarketsList(props) {
           <p>Click to add a new market</p>
         </li>
       ) : (
-        <p>Connecting to server...</p>
+        <li className="ConnectingPlaceholder">Connecting to server...</li>
       )}
     </ul>
   );
