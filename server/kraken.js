@@ -29,60 +29,10 @@ const normalizePayload = payload => {
   return { ask, bid, asks, bids, pair };
 };
 
-const createOutputStream = () => {
-  return new Transform({
-    objectMode: true,
-    transform(chunk, encoding, cb) {
-      console.log("output", { encoding });
-      const payload = JSON.parse(chunk);
-      if (Array.isArray(payload)) {
-        const { ask, asks, bid, bids, pair } = normalizePayload(payload);
-        this.push({ ask, asks, bid, bids, pair });
-      } else {
-        const { event } = payload;
-        if (event === "heartbeat") {
-          console.log("[kraken] Heartbeat received");
-        } else if (event === "pong") {
-          console.log("[kraken] Pong received");
-        } else if (!["systemStatus", "subscriptionStatus"].includes(event)) {
-          console.error("[kraken] Unknown update received", payload);
-        }
-      }
-      cb();
-    }
-  });
-};
-
-const createSubscriptionStream = (outputStream, symbol) => {
-  console.log("create sub", { symbol });
-  const transform = new Transform({
-    // objectMode: true,
-    readableObjectMode: false,
-    writableObjectMode: true,
-    transform(chunk, encoding, cb) {
-      //console.log("sub stream for " + symbol, { chunk });
-      const { ask, asks, bid, bids, pair } = chunk;
-      if (pair !== symbol) return cb();
-      const data = { pair };
-      if (bids && asks) {
-        data.bids = bids;
-        data.asks = asks;
-      } else {
-        // These are updates, not orderbook snapshots. In a normal implementation they should update the last
-        // orderbook snapshot in memory and deliver the up-to-date orderbook.
-        data.bids = bid;
-        data.asks = ask;
-      }
-      return cb(null, JSON.stringify(data));
-    }
-  });
-  return outputStream.pipe(transform);
-};
-
 class Kraken {
   constructor() {
     this.pairs = [];
-    this.output = createOutputStream();
+    this.createOutputStream();
     this.initWebSocket();
     this.subscriptions = new Map();
   }
@@ -109,6 +59,56 @@ class Kraken {
   async init() {
     this.pairs = await getPairs();
   }
+  createOutputStream() {
+    this.output = new Transform({
+      objectMode: true,
+      transform(chunk, encoding, cb) {
+        // console.log("output", { encoding });
+        const payload = JSON.parse(chunk);
+        if (Array.isArray(payload)) {
+          const { ask, asks, bid, bids, pair } = normalizePayload(payload);
+          this.push({ ask, asks, bid, bids, pair });
+        } else {
+          const { event } = payload;
+          if (event === "heartbeat") {
+            console.log("[kraken] Heartbeat received");
+          } else if (event === "pong") {
+            console.log("[kraken] Pong received");
+          } else if (!["systemStatus", "subscriptionStatus"].includes(event)) {
+            console.error("[kraken] Unknown update received", payload);
+          }
+        }
+        cb();
+      }
+    });
+  }
+  createSubscriptionStream = (outputStream, symbol) => {
+    const orderBook = {};
+    console.log("create sub", { symbol });
+    const transform = new Transform({
+      // objectMode: true,
+      readableObjectMode: false,
+      writableObjectMode: true,
+      transform(chunk, encoding, cb) {
+        // console.log("sub stream for " + symbol, { chunk });
+        const { ask, asks, bid, bids, pair } = chunk;
+        if (pair !== symbol) return cb();
+        const data = { pair, exchange: "kraken" };
+        if (bids && asks) {
+          data.bids = bids;
+          data.asks = asks;
+        } else {
+          // These are updates, not orderbook snapshots. In a normal implementation they should update the last
+          // orderbook snapshot in memory and deliver the up-to-date orderbook.
+          data.bids = bid;
+          data.asks = ask;
+          return cb();
+        }
+        return cb(null, JSON.stringify(data));
+      }
+    });
+    return outputStream.pipe(transform);
+  };
   ping() {
     this.ws.send(
       JSON.stringify({
@@ -121,7 +121,7 @@ class Kraken {
     let subscription;
     if (this.subscriptions.has(pair)) {
       subscription = this.subscriptions.get(pair);
-      subscription.subscribers += 1;
+      subscription.subscribers.add(stream);
     } else {
       this.stream.write(
         JSON.stringify({
@@ -133,15 +133,20 @@ class Kraken {
           }
         })
       );
+      const subscriptionStream = this.createSubscriptionStream(
+        this.output,
+        pair
+      );
       subscription = {
-        stream: createSubscriptionStream(this.output, pair),
-        subscribers: 1
+        orderBook: {},
+        stream: subscriptionStream,
+        subscribers: new Set([stream])
       };
       this.subscriptions.set(pair, subscription);
     }
     subscription.stream.pipe(stream);
     console.log(
-      `[kraken] New subscriber to ${pair}, number is now ${subscription.subscribers}`
+      `[kraken] New subscriber to ${pair}, number of subscibers: ${subscription.subscribers.size}`
     );
   }
   unsubscribe(stream, pair) {
@@ -150,11 +155,11 @@ class Kraken {
     }
     const subscription = this.subscriptions.get(pair);
     subscription.stream.unpipe(stream);
-    subscription.subscribers -= 1;
+    subscription.subscribers.delete(stream);
     console.log(
-      `[kraken] Removed subscription to ${pair}, number of subscriber is now ${subscription.subscribers}`
+      `[kraken] Removed subscription to ${pair}, number of subscribers is now ${subscription.subscribers.size}`
     );
-    if (subscription.subscribers <= 0) {
+    if (subscription.subscribers.size <= 0) {
       this.stream.write(
         JSON.stringify({
           event: "unsubscribe",
@@ -166,6 +171,9 @@ class Kraken {
         })
       );
       this.subscriptions.delete(pair);
+      console.log(
+        `[kraken] No more subscribers for ${pair}, removed subscription`
+      );
     }
   }
 }
