@@ -99,7 +99,7 @@ function App() {
         setExchanges(data.exchanges);
       }
       if (data?.exchange && data?.pair) {
-        const { exchange, pair, asks, bids } = data;
+        const { exchange, pair, snapshot } = data;
         const subscriptionId = `${exchange}.${pair}`;
         if (!subscriptions.hasOwnProperty(subscriptionId)) {
           console.error(
@@ -109,32 +109,27 @@ function App() {
         }
         const subscription = subscriptions[subscriptionId];
         let updateSubscription;
-        if (asks) {
-          const newAsks = asks
-            .slice(0, 3)
-            .map(ask => {
-              ask[0] = parseFloat(ask[0]);
-              return ask;
-            })
-            .reverse();
+
+        if (snapshot) {
+          const { asks, bids } = snapshot;
           updateSubscription = {
             ...subscription,
-            asks: newAsks
+            asks: asks.reverse(),
+            bids
           };
         }
-        if (bids) {
-          const newBids = bids.slice(0, 3).map(bid => {
-            bid[0] = parseFloat(bid[0]);
-            return bid;
-          });
-          updateSubscription = updateSubscription || { ...subscription };
-          updateSubscription.bids = newBids;
-        }
+
         if (updateSubscription) {
           const bestAskPrice = updateSubscription.asks[2][0];
           const bestBidPrice = updateSubscription.bids[0][0];
           const midPrice = (bestAskPrice + bestBidPrice) / 2;
           const spread = (bestAskPrice - bestBidPrice) / midPrice;
+          console.log({
+            updateSubscription,
+            subscriptionId,
+            midPrice,
+            spread
+          });
           setSubscriptions({
             ...subscriptions,
             [subscriptionId]: {

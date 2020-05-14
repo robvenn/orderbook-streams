@@ -1,6 +1,7 @@
 const axios = require("axios");
 const { Transform } = require("stream");
 const WebSocket = require("ws");
+const { createOrderBookSnapshot } = require("../utils/orderBooks");
 
 // const sink = require("./sink");
 
@@ -59,11 +60,11 @@ class Kraken {
   async init() {
     this.pairs = await getPairs();
   }
+
   createOutputStream() {
     this.output = new Transform({
       objectMode: true,
       transform(chunk, encoding, cb) {
-        // console.log("output", { encoding });
         const payload = JSON.parse(chunk);
         if (Array.isArray(payload)) {
           const { ask, asks, bid, bids, pair } = normalizePayload(payload);
@@ -83,20 +84,21 @@ class Kraken {
     });
   }
   createSubscriptionStream = (outputStream, symbol) => {
-    const orderBook = {};
     console.log("create sub", { symbol });
     const transform = new Transform({
       // objectMode: true,
       readableObjectMode: false,
       writableObjectMode: true,
-      transform(chunk, encoding, cb) {
+      transform: (chunk, encoding, cb) => {
         // console.log("sub stream for " + symbol, { chunk });
         const { ask, asks, bid, bids, pair } = chunk;
         if (pair !== symbol) return cb();
         const data = { pair, exchange: "kraken" };
+        const subscription = this.subscriptions.get(pair);
         if (bids && asks) {
-          data.bids = bids;
-          data.asks = asks;
+          const snapshot = createOrderBookSnapshot({ asks, bids });
+          subscription.snapshot = snapshot;
+          data.snapshot = snapshot;
         } else {
           // These are updates, not orderbook snapshots. In a normal implementation they should update the last
           // orderbook snapshot in memory and deliver the up-to-date orderbook.
@@ -122,6 +124,13 @@ class Kraken {
     if (this.subscriptions.has(pair)) {
       subscription = this.subscriptions.get(pair);
       subscription.subscribers.add(stream);
+      stream.write(
+        JSON.stringify({
+          pair,
+          exchange: "kraken",
+          snapshot: subscription.snapshot
+        })
+      );
     } else {
       this.stream.write(
         JSON.stringify({

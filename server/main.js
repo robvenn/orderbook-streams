@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require("uuid");
 const WebSocket = require("ws");
 
-const { createService } = require("./kraken");
+const { createService } = require("./exchanges/kraken");
 
 const createMessageSender = ws => {
   const message = msg => ws.send(JSON.stringify(msg));
