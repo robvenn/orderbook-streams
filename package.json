@@ -7,7 +7,8 @@
   "private": true,
   "scripts": {
     "start": "node .",
-    "dev": "nodemon ."
+    "dev": "nodemon .",
+    "test": "mocha ./server/**/*.test.js"
   },
   "dependencies": {
     "axios": "^0.19.2",
@@ -16,6 +17,8 @@
     "ws": "^7.2.1"
   },
   "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^7.1.2",
     "nodemon": "^2.0.3",
     "prettier": "^1.19.1"
   }
