@@ -1,3 +1,8 @@
+const firstElToFloat = row => {
+  row[0] = parseFloat(row[0]);
+  return row;
+};
+
 const createOrderBookSnapshot = ({ asks = [], bids = [] }) => ({
   asks: asks.map(firstElToFloat),
   bids: bids.map(firstElToFloat)
@@ -7,11 +12,6 @@ const getSnapshotSlices = ({ asks, bids }, n) => ({
   asks: asks.slice(0, n),
   bids: bids.slice(0, n)
 });
-
-const firstElToFloat = row => {
-  row[0] = parseFloat(row[0]);
-  return row;
-};
 
 // conditions to update the orderbooks
 const REMOVE = "REMOVE";
@@ -57,7 +57,16 @@ const updateAsks = updateOrderBookList(LT);
 
 const updateBids = updateOrderBookList(GT);
 
+const calculateStats = (asks, bids) => {
+  const bestAskPrice = asks[0][0];
+  const bestBidPrice = bids[0][0];
+  const midPrice = (bestAskPrice + bestBidPrice) / 2;
+  const spread = (bestAskPrice - bestBidPrice) / midPrice;
+  return { midPrice, spread };
+};
+
 module.exports = {
+  calculateStats,
   createOrderBookSnapshot,
   getSnapshotSlices,
   firstElToFloat,

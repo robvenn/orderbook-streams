@@ -2,6 +2,7 @@ const axios = require("axios");
 const { Transform } = require("stream");
 const WebSocket = require("ws");
 const {
+  calculateStats,
   createOrderBookSnapshot,
   getSnapshotSlices,
   updateAsks,
@@ -13,7 +14,7 @@ const {
 const API_URL = "https://api.kraken.com/0/public/AssetPairs";
 const WS_URL = "wss://ws.kraken.com";
 const PING_INTERVAL_MS = 10000;
-const SNAPSHOT_MEM_SIZE = 6;
+const SNAPSHOT_MEM_SIZE = 10;
 const SNAPSHOT_RES_SIZE = 3;
 
 const getPairs = async () => {
@@ -67,7 +68,6 @@ class Kraken {
   async init() {
     this.pairs = await getPairs();
   }
-
   createOutputStream() {
     this.output = new Transform({
       objectMode: true,
@@ -106,9 +106,11 @@ class Kraken {
             SNAPSHOT_MEM_SIZE
           );
           subscription.snapshot = snapshot;
+          const calculatedStats = calculateStats(snapshot.asks, snapshot.bids);
           Object.assign(
             responseMessage,
-            getSnapshotSlices(snapshot, SNAPSHOT_RES_SIZE)
+            getSnapshotSlices(snapshot, SNAPSHOT_RES_SIZE),
+            calculatedStats
           );
           return cb(null, JSON.stringify(responseMessage));
         }
@@ -131,7 +133,9 @@ class Kraken {
           }
         }
         if (update.asks || update.bids) {
-          Object.assign(responseMessage, update);
+          const calculatedStats = calculateStats(snapshot.asks, snapshot.bids);
+          Object.assign(snapshot, calculatedStats);
+          Object.assign(responseMessage, update, calculatedStats);
           return cb(null, JSON.stringify(responseMessage));
         }
         return cb(null);
