@@ -1,6 +1,11 @@
 const createOrderBookSnapshot = ({ asks = [], bids = [] }) => ({
-  asks: asks.slice(0, 3).map(firstElToFloat),
-  bids: bids.slice(0, 3).map(firstElToFloat)
+  asks: asks.map(firstElToFloat),
+  bids: bids.map(firstElToFloat)
+});
+
+const getSnapshotSlices = ({ asks, bids }, n) => ({
+  asks: asks.slice(0, n),
+  bids: bids.slice(0, n),
 });
 
 const firstElToFloat = row => {
@@ -8,8 +13,9 @@ const firstElToFloat = row => {
   return row;
 };
 
-// comparator conditions for updating the orderbooks
-const EQUALS = "EQUALS";
+// conditions to update the orderbooks
+const REMOVE = "REMOVE";
+const UPDATE = "UPDATE";
 const LT = "LT";
 const GT = "GT";
 
@@ -22,7 +28,8 @@ const updateAsks = (currentAsks, askUpdates) => {
     const fulfilledAtIndex = currentAsks.findIndex(currentAsk => {
       const currentAskPrice = currentAsk[0];
       if (askUpdatePrice === currentAskPrice) {
-        conditionFulfilled = EQUALS;
+        const askUpdateVolume = parseFloat(askUpdate[1]);
+        conditionFulfilled = askUpdateVolume === 0 ? REMOVE : UPDATE;
         return true;
       } else if (askUpdatePrice < currentAskPrice) {
         conditionFulfilled = LT;
@@ -31,11 +38,12 @@ const updateAsks = (currentAsks, askUpdates) => {
     });
     if (fulfilledAtIndex > -1) {
       updatedAsks = updatedAsks || currentAsks;
-      if (conditionFulfilled === EQUALS) {
+      if (conditionFulfilled === REMOVE) {
+        updatedAsks.splice(fulfilledAtIndex, 1);
+      } else if (conditionFulfilled === UPDATE) {
         updatedAsks[fulfilledAtIndex] = askUpdate;
       } else if (conditionFulfilled === LT) {
         updatedAsks.splice(fulfilledAtIndex, 0, askUpdate);
-        updatedAsks.pop();
       }
     }
   });
@@ -44,6 +52,7 @@ const updateAsks = (currentAsks, askUpdates) => {
 
 module.exports = {
   createOrderBookSnapshot,
+  getSnapshotSlices,
   firstElToFloat,
   updateAsks
 };

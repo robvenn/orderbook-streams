@@ -1,13 +1,19 @@
 const axios = require("axios");
 const { Transform } = require("stream");
 const WebSocket = require("ws");
-const { createOrderBookSnapshot } = require("../utils/orderBooks");
+const {
+  createOrderBookSnapshot,
+  getSnapshotSlices,
+  updateAsks
+} = require("../utils/orderBooks");
 
 // const sink = require("./sink");
 
 const API_URL = "https://api.kraken.com/0/public/AssetPairs";
 const WS_URL = "wss://ws.kraken.com";
 const PING_INTERVAL_MS = 10000;
+const SNAPSHOT_MEM_SIZE = 6;
+const SNAPSHOT_RES_SIZE = 3;
 
 const getPairs = async () => {
   const {
@@ -86,27 +92,36 @@ class Kraken {
   createSubscriptionStream = (outputStream, symbol) => {
     console.log("create sub", { symbol });
     const transform = new Transform({
-      // objectMode: true,
       readableObjectMode: false,
       writableObjectMode: true,
       transform: (chunk, encoding, cb) => {
-        // console.log("sub stream for " + symbol, { chunk });
         const { ask, asks, bid, bids, pair } = chunk;
         if (pair !== symbol) return cb();
-        const data = { pair, exchange: "kraken" };
+        const responseMessage = { pair, exchange: "kraken" };
         const subscription = this.subscriptions.get(pair);
         if (bids && asks) {
-          const snapshot = createOrderBookSnapshot({ asks, bids });
+          const snapshot = getSnapshotSlices(createOrderBookSnapshot({ asks, bids }), SNAPSHOT_MEM_SIZE);
           subscription.snapshot = snapshot;
-          data.snapshot = snapshot;
-        } else {
-          // These are updates, not orderbook snapshots. In a normal implementation they should update the last
-          // orderbook snapshot in memory and deliver the up-to-date orderbook.
-          data.bids = bid;
-          data.asks = ask;
-          return cb();
+          Object.assign(responseMessage, getSnapshotSlices(snapshot, SNAPSHOT_RES_SIZE));
+          return cb(null, JSON.stringify(responseMessage));
         }
-        return cb(null, JSON.stringify(data));
+        // These are updates, not orderbook snapshots. In a normal implementation they should update the last
+        // orderbook snapshot in memory and deliver the up-to-date orderbook.
+        const { snapshot } = subscription;
+        const update = {};
+        if (ask) {
+          const currentAsks = snapshot.asks;
+          const updatedAsks = updateAsks(currentAsks, ask);
+          if (updatedAsks) {
+            snapshot.asks = updatedAsks.slice(0, SNAPSHOT_MEM_SIZE);
+            update.asks = updatedAsks.slice(0, SNAPSHOT_RES_SIZE);
+          }
+        }
+        if (update.asks) {
+          responseMessage.asks = update.asks;
+          return cb(null, JSON.stringify(responseMessage));
+        }
+        return cb(null);
       }
     });
     return outputStream.pipe(transform);
@@ -128,7 +143,7 @@ class Kraken {
         JSON.stringify({
           pair,
           exchange: "kraken",
-          snapshot: subscription.snapshot
+          ...getSnapshotSlices(subscription.snapshot, SNAPSHOT_RES_SIZE)
         })
       );
     } else {
