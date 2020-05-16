@@ -4,7 +4,8 @@ const WebSocket = require("ws");
 const {
   createOrderBookSnapshot,
   getSnapshotSlices,
-  updateAsks
+  updateAsks,
+  updateBids
 } = require("../utils/orderBooks");
 
 // const sink = require("./sink");
@@ -100,9 +101,15 @@ class Kraken {
         const responseMessage = { pair, exchange: "kraken" };
         const subscription = this.subscriptions.get(pair);
         if (bids && asks) {
-          const snapshot = getSnapshotSlices(createOrderBookSnapshot({ asks, bids }), SNAPSHOT_MEM_SIZE);
+          const snapshot = getSnapshotSlices(
+            createOrderBookSnapshot({ asks, bids }),
+            SNAPSHOT_MEM_SIZE
+          );
           subscription.snapshot = snapshot;
-          Object.assign(responseMessage, getSnapshotSlices(snapshot, SNAPSHOT_RES_SIZE));
+          Object.assign(
+            responseMessage,
+            getSnapshotSlices(snapshot, SNAPSHOT_RES_SIZE)
+          );
           return cb(null, JSON.stringify(responseMessage));
         }
         // These are updates, not orderbook snapshots. In a normal implementation they should update the last
@@ -110,15 +117,21 @@ class Kraken {
         const { snapshot } = subscription;
         const update = {};
         if (ask) {
-          const currentAsks = snapshot.asks;
-          const updatedAsks = updateAsks(currentAsks, ask);
+          const updatedAsks = updateAsks(snapshot.asks, ask);
           if (updatedAsks) {
             snapshot.asks = updatedAsks.slice(0, SNAPSHOT_MEM_SIZE);
             update.asks = updatedAsks.slice(0, SNAPSHOT_RES_SIZE);
           }
         }
-        if (update.asks) {
-          responseMessage.asks = update.asks;
+        if (bid) {
+          const updatedBids = updateBids(snapshot.bids, bid);
+          if (updatedBids) {
+            snapshot.bids = updatedBids.slice(0, SNAPSHOT_MEM_SIZE);
+            update.bids = updatedBids.slice(0, SNAPSHOT_RES_SIZE);
+          }
+        }
+        if (update.asks || update.bids) {
+          Object.assign(responseMessage, update);
           return cb(null, JSON.stringify(responseMessage));
         }
         return cb(null);
