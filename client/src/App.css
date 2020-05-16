@@ -78,10 +78,10 @@
 }
 
 .MarketsList {
-  margin: 0;
+  margin: 0 -20px;
   padding: 0;
   list-style: none;
-  display: block;
+  display: flex;
 }
 
 .MarketsList > li {
@@ -89,8 +89,8 @@
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
   monospace;
   padding: 10px;
-  margin: 10px 0;
-  max-width: 450px;
+  margin: 20px;
+  width: 400px;
 }
 
 .Market {
@@ -169,9 +169,12 @@
 }
 
 .Ask,
-.Bid {
+.Bid,
+.Market-highlight {
   display: flex;
   justify-content: space-between;
+  margin: 5px 0;
+  overflow-wrap: break-word;
 }
 
 .Ask > span,
@@ -188,58 +191,13 @@
   color: var(--red);
 }
 
-.Ask,
-.Bid,
-.Market-highlight {
-  display: flex;
-  justify-content: space-between;
-  margin: 5px 0;
-}
 
 .MidPrice,
 .Spread {
   width: 49%;
-  font-size: 28px;
+  font-size: 21px;
 }
 
 .Spread {
   font-weight: bold;
-}
-
-@media (min-width: 840px) {
-  .MarketsList {
-    align-items: flex-start;
-    justify-content: flex-start;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-  .MarketsList > li {
-    flex-grow: 1;
-    max-width: 49%;
-  }
-  .MarketsList > li:not(:first-child),
-  .MarketsList > li:not(:nth-child(2n+1)) {
-    margin-left: 2%;
-  }
-}
-
-@media (min-width: 1180px) {
-  .MarketsList > li {
-    max-width: 32%;
-  }
-  .MarketsList > li:not(:first-child),
-  .MarketsList > li:not(:nth-child(3n+1)) {
-    margin-left: 2%;
-  }
-}
-
-@media (min-width: 1440px) {
-  .MarketsList > li {
-    max-width: 24%;
-  }
-  .MarketsList > li:not(:first-child),
-  .MarketsList > li:not(:nth-child(4n+1)) {
-    margin-left: 1.334%;
-  }
 }

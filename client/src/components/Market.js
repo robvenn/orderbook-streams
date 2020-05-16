@@ -19,9 +19,9 @@ export default function Market(props) {
         <p>Speed: 53 ob/min</p>
       </header>
       <ul className="AsksList">
-        {asks.map(ask => {
+        {asks.map((ask, i) => {
           return (
-            <li key={ask[0] + ask[1]} className="Ask">
+            <li key={`${i}${ask[0]}`} className="Ask">
               <span className="AskPrice">{ask[0]}</span>
               <span className="">{ask[1]}</span>
             </li>
@@ -33,9 +33,9 @@ export default function Market(props) {
         <div className="Spread">{spread && `${spread} %`}</div>
       </div>
       <ul className="BidsList">
-        {bids.map(bid => {
+        {bids.map((bid, i) => {
           return (
-            <li key={bid[0] + bid[1]} className="Bid">
+            <li key={`${i}${bid[0]}`} className="Bid">
               <span className="BidPrice">{bid[0]}</span>
               <span className="">{bid[1]}</span>
             </li>

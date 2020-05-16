@@ -94,12 +94,12 @@ function App() {
       } catch (err) {
         console.error("failed parsing message: ", evt.data);
       }
-      console.log("message:", JSON.stringify(data));
+      //console.log("message:", JSON.stringify(data));
       if (data?.exchanges) {
         setExchanges(data.exchanges);
       }
       if (data?.exchange && data?.pair) {
-        const { exchange, pair, snapshot } = data;
+        const { exchange, pair, asks, bids, spread, midPrice } = data;
         const subscriptionId = `${exchange}.${pair}`;
         if (!subscriptions.hasOwnProperty(subscriptionId)) {
           console.error(
@@ -108,35 +108,17 @@ function App() {
           return;
         }
         const subscription = subscriptions[subscriptionId];
-        let updateSubscription;
-
-        if (snapshot) {
-          const { asks, bids } = snapshot;
-          updateSubscription = {
+        if (asks || bids) {
+          const updatedSubscription = {
             ...subscription,
-            asks: asks.reverse(),
-            bids
-          };
-        }
-
-        if (updateSubscription) {
-          const bestAskPrice = updateSubscription.asks[2][0];
-          const bestBidPrice = updateSubscription.bids[0][0];
-          const midPrice = (bestAskPrice + bestBidPrice) / 2;
-          const spread = (bestAskPrice - bestBidPrice) / midPrice;
-          console.log({
-            updateSubscription,
-            subscriptionId,
+            ...(asks && { asks }),
+            ...(bids && { bids }),
             midPrice,
             spread
-          });
+          };
           setSubscriptions({
             ...subscriptions,
-            [subscriptionId]: {
-              ...updateSubscription,
-              midPrice,
-              spread
-            }
+            [subscriptionId]: updatedSubscription
           });
         }
       }
