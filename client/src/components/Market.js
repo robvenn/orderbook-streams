@@ -1,15 +1,10 @@
 import React from "react";
 
+import { calculateStats } from "../util/orderBook";
+
 export default function Market(props) {
-  const {
-    asks = [],
-    bids = [],
-    exchangeName,
-    pair,
-    midPrice,
-    spread,
-    onRemove
-  } = props;
+  const { asks = [], bids = [], exchangeName, pair, onRemove } = props;
+  const { midPrice = "", spread = "" } = calculateStats(asks, bids);
   return (
     <li className="Market">
       <header className="Market-header">

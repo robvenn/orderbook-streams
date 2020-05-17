@@ -57,16 +57,7 @@ const updateAsks = updateOrderBookList(LT);
 
 const updateBids = updateOrderBookList(GT);
 
-const calculateStats = (asks, bids) => {
-  const bestAskPrice = asks[0][0];
-  const bestBidPrice = bids[0][0];
-  const midPrice = (bestAskPrice + bestBidPrice) / 2;
-  const spread = (bestAskPrice - bestBidPrice) / midPrice;
-  return { midPrice, spread };
-};
-
 module.exports = {
-  calculateStats,
   createOrderBookSnapshot,
   getSnapshotSlices,
   firstElToFloat,

@@ -2,7 +2,6 @@ const axios = require("axios");
 const { Transform } = require("stream");
 const WebSocket = require("ws");
 const {
-  calculateStats,
   createOrderBookSnapshot,
   getSnapshotSlices,
   updateAsks,
@@ -91,7 +90,6 @@ class Kraken {
     });
   }
   createSubscriptionStream = (outputStream, symbol) => {
-    console.log("create sub", { symbol });
     const transform = new Transform({
       readableObjectMode: false,
       writableObjectMode: true,
@@ -106,11 +104,9 @@ class Kraken {
             SNAPSHOT_MEM_SIZE
           );
           subscription.snapshot = snapshot;
-          const calculatedStats = calculateStats(snapshot.asks, snapshot.bids);
           Object.assign(
             responseMessage,
-            getSnapshotSlices(snapshot, SNAPSHOT_RES_SIZE),
-            calculatedStats
+            getSnapshotSlices(snapshot, SNAPSHOT_RES_SIZE)
           );
           return cb(null, JSON.stringify(responseMessage));
         }
@@ -133,9 +129,7 @@ class Kraken {
           }
         }
         if (update.asks || update.bids) {
-          const calculatedStats = calculateStats(snapshot.asks, snapshot.bids);
-          Object.assign(snapshot, calculatedStats);
-          Object.assign(responseMessage, update, calculatedStats);
+          Object.assign(responseMessage, update);
           return cb(null, JSON.stringify(responseMessage));
         }
         return cb(null);
@@ -170,7 +164,7 @@ class Kraken {
           pair: [pair],
           subscription: {
             name: "book",
-            depth: 100
+            depth: SNAPSHOT_MEM_SIZE
           }
         })
       );

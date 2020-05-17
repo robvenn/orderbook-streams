@@ -1,40 +1,57 @@
-# Keyrock full stack developer test 
-Solution based on `orderbook-parser` example project that gets orderbook snapshots from Kraken.
+# Orderbook streams
 
-## Goals
+This project started as a solution for Keyrock's full stack developer test, based the on [orderbook-parser](https://github.com/KeyrockEU/orderbook-parser) example project.
+The idea is that it should be able to support data from multiple cryptocurrency exchanges, currently it only supports [Kraken](https://www.kraken.com/).
+This repository contains a Node.js backend and a React frontend, and it should be able to support multiple clients running in the browser to track updates from crypto markets.
 
-- This project is the result of a coding test with data from a cryptocurrency exchange, currently it only supports [Kraken](https://www.kraken.com/)
+This "experimental" approach is interesting to test how certain decisions impact performance, like whether to keep the orderbook snapshots in memory on the server and calculate the updated snapshots, mid price and spread % on the backend, or leave that to the frontend.
+Some background information about orderbooks with the Kraken WebSocket API cn be found here:
+- https://support.kraken.com/hc/en-us/articles/360027821131-How-to-maintain-a-valid-order-book-
+- https://support.kraken.com/hc/en-us/articles/360027678792-Example-order-book-transcript
 
-### Backend
+## Goals & approach
 
-- The backend server connects to the crypto exchange over a WebSocket, keeping the connection alive
-- The backend allows incoming WebSocket connections and subscriptions, and will manage the subscriptions to the crypto exchange
-- Multiple clients can connect and they can all subscribe or unsubscribe to the markets they want
-- The backend will subscribe to the crypto exchange if there is a client that wants to subscribe
-- If there are no more subscriptions from clients the backend will also close this subscription to the crypto exchange
-- The backend uses Node.js streams and pipes to filter the right subscriptions and connect them to the right clients
+### The backend (Node.js)
+- [x] connects to the crypto exchange (for Kraken: using a WebSocket, keeping the connection alive with ping messages)
+- [x] allows incoming WebSocket connections from multiple clients 
+- [x] sends a message with the available exchanges and markets to the clients on first connection
+- [x] allows clients to subscribe and unsubscribe to these markets 
+- [x] manages the subscriptions to the crypto exchange, subscribing & unsubscribing when needed
+- [x] uses streams and pipes to filter the right subscriptions and connect them to the right clients
+- [ ] keeps track of the update speed by market and periodically sends a message to the clients with the current speed
 
-### Frontend
+TODO: snapshots are kept in memory and updated on the backend, which could put too much load on the server if there are many subscriptions
+- [ ] backend could get latest snapshot from the exchange for every new client subscription to avoid processing all the snapshot updates
+- [ ] will reconnect if the connection to the exchange drops (and restore all the subscriptions that were active?)
 
-- The frontend is a React app that initializes with no subscriptions and starts a WebSocket connection
-- The frontend receives the list of available subscriptions in a WebSocket message when the connection opens
-- It's possible to "add a market" and pick one of the available subscriptions
-- The market data will continuously update and keep the connection open
-- It's also possible to unsubscribe which will close the market "box" and stop receiving updates for that market
+### The frontend (React.js)
+- [x] initializes with no subscriptions and opens a WebSocket connection to the backend
+- [x] receives the list of available subscriptions in a WebSocket message when the connection opens
+- [x] can select markets to subscribe and continuously update the orderbook numbers
+- [x] can remove active markets to unsubscribe and stop receiving updates for that market
+- [x] calculates the mid price and spread based on the snapshots
+
+TODO: consider performance updates and handling disconnects
+- [ ] calculates the snapshot updates to avoid putting too much load on the backend
+- [ ] will try to reconnect if the connection closes (and restore the active subscriptions?)
+
 
 ## Requirements
 
 - You need a relatively new version of Node.js (this was tested with version 14.1.0)
 - `yarn` package manager
 
+
 ## How to install
 
 - `git clone` this repo
 - Run `yarn` to install the dependencies
 
+
 ## How to run
 ****
 Run`yarn start`, open your browser on `http://localhost:9000/`.
+
 
 ## Development
 
