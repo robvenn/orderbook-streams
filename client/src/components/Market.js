@@ -3,7 +3,7 @@ import React from "react";
 import { calculateStats } from "../util/orderBook";
 
 export default function Market(props) {
-  const { asks = [], bids = [], exchangeName, pair, onRemove } = props;
+  const { asks = [], bids = [], exchangeName, pair, speed, onRemove } = props;
   const { midPrice = "", spread = "" } = calculateStats(asks, bids);
   return (
     <li className="Market">
@@ -11,10 +11,10 @@ export default function Market(props) {
         <h3>
           {exchangeName} {pair}
         </h3>
-        <p>Speed: 53 ob/min</p>
+        <p>Speed: {speed && `${speed} updates/minute`}</p>
       </header>
       <ul className="AsksList">
-        {asks.map((ask, i) => {
+        {asks.reverse().map((ask, i) => {
           return (
             <li key={`${i}${ask[0]}`} className="Ask">
               <span className="AskPrice">{ask[0]}</span>

@@ -13,7 +13,7 @@ const getSnapshotSlices = ({ asks, bids }, n) => ({
   bids: bids.slice(0, n)
 });
 
-// conditions to update the orderbooks
+// conditions to update the orderbook snapshots
 const REMOVE = "REMOVE";
 const UPDATE = "UPDATE";
 const LT = "LT";

@@ -7,8 +7,7 @@ const {
   updateAsks,
   updateBids
 } = require("../utils/orderBooks");
-
-// const sink = require("./sink");
+const SpeedCounter = require("../utils/SpeedCounter");
 
 const API_URL = "https://api.kraken.com/0/public/AssetPairs";
 const WS_URL = "wss://ws.kraken.com";
@@ -98,6 +97,10 @@ class Kraken {
         if (pair !== symbol) return cb();
         const responseMessage = { pair, exchange: "kraken" };
         const subscription = this.subscriptions.get(pair);
+        if (!subscription) {
+          console.error("[kraken] not subscribed to", pair);
+          return cb(null);
+        }
         if (bids && asks) {
           const snapshot = getSnapshotSlices(
             createOrderBookSnapshot({ asks, bids }),
@@ -112,7 +115,8 @@ class Kraken {
         }
         // These are updates, not orderbook snapshots. In a normal implementation they should update the last
         // orderbook snapshot in memory and deliver the up-to-date orderbook.
-        const { snapshot } = subscription;
+        const { speedCounter, snapshot } = subscription;
+        speedCounter.update();
         const update = {};
         if (ask) {
           const updatedAsks = updateAsks(snapshot.asks, ask);
@@ -172,8 +176,18 @@ class Kraken {
         this.output,
         pair
       );
+      const speedCounter = new SpeedCounter(`kraken_${pair}`, speed => {
+        stream.write(
+          JSON.stringify({
+            pair,
+            exchange: "kraken",
+            speed
+          })
+        );
+      });
       subscription = {
         orderBook: {},
+        speedCounter,
         stream: subscriptionStream,
         subscribers: new Set([stream])
       };
@@ -181,7 +195,7 @@ class Kraken {
     }
     subscription.stream.pipe(stream);
     console.log(
-      `[kraken] New subscriber to ${pair}, number of subscibers: ${subscription.subscribers.size}`
+      `[kraken] New subscriber to ${pair}, number of subscribers: ${subscription.subscribers.size}`
     );
   }
   unsubscribe(stream, pair) {
@@ -189,6 +203,8 @@ class Kraken {
       throw new Error("[kraken] Subscription not found, " + pair);
     }
     const subscription = this.subscriptions.get(pair);
+    this.output.unpipe(subscription.stream);
+    subscription.speedCounter.destroy();
     subscription.stream.unpipe(stream);
     subscription.subscribers.delete(stream);
     console.log(
@@ -201,7 +217,7 @@ class Kraken {
           pair: [pair],
           subscription: {
             name: "book",
-            depth: 100
+            depth: SNAPSHOT_MEM_SIZE
           }
         })
       );

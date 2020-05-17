@@ -28,8 +28,7 @@ function App() {
       ...market,
       asks: [],
       bids: [],
-      midPrice: null,
-      spread: null
+      speed: null
     };
     setSubscriptions({ ...subscriptions, [marketId]: subscription });
     closeModal();
@@ -94,12 +93,11 @@ function App() {
       } catch (err) {
         console.error("failed parsing message: ", evt.data);
       }
-      //console.log("message:", JSON.stringify(data));
       if (data?.exchanges) {
         setExchanges(data.exchanges);
       }
       if (data?.exchange && data?.pair) {
-        const { exchange, pair, asks, bids, spread, midPrice } = data;
+        const { exchange, pair, asks, bids, speed } = data;
         const subscriptionId = `${exchange}.${pair}`;
         if (!subscriptions.hasOwnProperty(subscriptionId)) {
           console.error(
@@ -108,13 +106,12 @@ function App() {
           return;
         }
         const subscription = subscriptions[subscriptionId];
-        if (asks || bids) {
+        if (asks || bids || speed) {
           const updatedSubscription = {
             ...subscription,
             ...(asks && { asks }),
             ...(bids && { bids }),
-            midPrice,
-            spread
+            ...(speed !== undefined && { speed })
           };
           setSubscriptions({
             ...subscriptions,
